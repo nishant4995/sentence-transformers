@@ -13,13 +13,15 @@ from tqdm.autonotebook import tqdm, trange
 from .. import SentenceTransformer, util
 from ..evaluation import SentenceEvaluator
 
+import wandb
+from .CrossEncoderWEmbeds import CrossEncoderWEmbeds
 
 logger = logging.getLogger(__name__)
 
 
 class CrossEncoder():
     def __init__(self, model_name:str, num_labels:int = None, max_length:int = None, device:str = None, tokenizer_args:Dict = {},
-                  automodel_args:Dict = {}, default_activation_function = None):
+                  automodel_args:Dict = {}, default_activation_function = None, use_embed_ce_model = False):
         """
         A CrossEncoder takes exactly two sentences / texts as input and either predicts
         a score or label for this sentence pair. It can for example predict the similarity of the sentence pair
@@ -46,8 +48,13 @@ class CrossEncoder():
 
         if num_labels is not None:
             self.config.num_labels = num_labels
-
-        self.model = AutoModelForSequenceClassification.from_pretrained(model_name, config=self.config, **automodel_args)
+        
+        if use_embed_ce_model:
+            self.model = CrossEncoderWEmbeds(model_name=model_name, config=self.config, **automodel_args)
+        else:
+            self.model = AutoModelForSequenceClassification.from_pretrained(model_name, config=self.config, **automodel_args)
+        
+        
         self.tokenizer = AutoTokenizer.from_pretrained(model_name, **tokenizer_args)
         self.max_length = max_length
 
@@ -183,7 +190,9 @@ class CrossEncoder():
             self.model.zero_grad()
             self.model.train()
 
-            for features, labels in tqdm(train_dataloader, desc="Iteration", smoothing=0.05, disable=not show_progress_bar):
+            for batch_idx, (features, labels) in enumerate(tqdm(train_dataloader, desc="Iteration", smoothing=0.05, disable=not show_progress_bar)):
+                wandb.log({f"batch_idx":batch_idx, "batch_frac":batch_idx/len(train_dataloader)})
+				
                 if use_amp:
                     with autocast():
                         model_predictions = self.model(**features, return_dict=True)
