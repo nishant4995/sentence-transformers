@@ -218,7 +218,8 @@ class CrossEncoder():
                     loss_value.backward()
                     torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_grad_norm)
                     optimizer.step()
-
+                
+                wandb.log({f"batch_idx":batch_idx, "loss":loss_value.cpu().detach().numpy()})
                 optimizer.zero_grad()
 
                 if not skip_scheduler:
@@ -306,6 +307,7 @@ class CrossEncoder():
         """Runs evaluation during the training"""
         if evaluator is not None:
             score = evaluator(self, output_path=output_path, epoch=epoch, steps=steps)
+            wandb.log({f"batch_idx":steps-1, "score":score})
             if callback is not None:
                 callback(score, epoch, steps)
             if score > self.best_score:

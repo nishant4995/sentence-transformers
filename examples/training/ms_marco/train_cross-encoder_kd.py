@@ -196,13 +196,14 @@ if __name__ == "__main__":
     import argparse, wandb
     
     parser = argparse.ArgumentParser( description='Train CE model')
-    parser.add_argument("--use_embed_ce_model", type=int, choices=[0, 1], help="0 - Use default CLS-token based pooling, and 1 - Use Embed based scoring for Cross-Encoder ")
-    parser.add_argument("--seed", type=int, help="Random seed")
+    parser.add_argument("--base_model_name", type=str, default='nreimers/MiniLM-L6-H384-uncased',
+						help="base model for finetuning. Some options are microsoft/MiniLM-L12-H384-uncased, nreimers/MiniLM-L6-H384-uncased")
+    parser.add_argument("--use_embed_ce_model", type=int, choices=[0, 1], required=True, help="0 - Use default CLS-token based pooling, and 1 - Use Embed based scoring for Cross-Encoder ")
     parser.add_argument("--res_dir", type=str, required=True, help="Base Res dir")
-    parser.add_argument("--disable_wandb", type=int, choices=[0,1], default=0, help="1-Disable Wanbd, 0-Use wandb")
-    parser.add_argument("--base_model_name", type=str, default='microsoft/MiniLM-L12-H384-uncased', help="base model for finetuning")
     parser.add_argument("--loss_fnc_name", type=str, default='mse', help="Loss function to use")
     parser.add_argument("--evaluation_steps", type=int, default=5000, help="Model will be evauated after this number of steps")
+    parser.add_argument("--disable_wandb", type=int, choices=[0,1], default=0, help="1-Disable Wanbd, 0-Use wandb")
+    parser.add_argument("--seed", type=int, default=0, help="Random seed")
     
     args = parser.parse_args()
     seed = args.seed
