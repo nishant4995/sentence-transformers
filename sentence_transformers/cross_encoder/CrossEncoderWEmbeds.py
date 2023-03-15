@@ -29,7 +29,7 @@ class CrossEncoderWEmbeds(nn.Module):
 
 		self.model = AutoModelForSequenceClassification.from_pretrained(model_name, config=config, **automodel_args)
 		print("Loading Cross-Encoder model that uses dot-product of contextualized embeddings "
-			  "for computing scores a linear layer on top of CLS token embedding.")
+			  "for computing scores INSTEAD of a linear layer on top of CLS token embedding.")
 		
 		
 	def forward(self, **features):
@@ -117,3 +117,7 @@ class CrossEncoderWEmbeds(nn.Module):
 	
 	def save_pretrained(self, save_directory):
 		self.model.save_pretrained(save_directory)
+	
+	@property
+	def device(self):
+		return self.model.device
