@@ -31,7 +31,7 @@ import argparse
 import random
 
 
-def main(res_dir, seed, use_embed_ce_model, base_model_name, evaluation_steps):
+def main(res_dir, seed, use_embed_ce_model, base_model_name, evaluation_steps, train_batch_size, lr):
 	
 	#### Just some code to print debug information to stdout
 	logging.basicConfig(format='%(asctime)s - %(message)s',
@@ -42,7 +42,7 @@ def main(res_dir, seed, use_embed_ce_model, base_model_name, evaluation_steps):
 
 	#First, we define the transformer model we want to fine-tune
 	model_name = base_model_name
-	train_batch_size = 32
+	# train_batch_size = 32
 	num_epochs = 1
 	model_save_path = f'{res_dir}/output/training_ms-marco_cross-encoder-'+model_name.replace("/", "-")+'-'+datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
 	
@@ -197,6 +197,7 @@ def main(res_dir, seed, use_embed_ce_model, base_model_name, evaluation_steps):
 			  evaluation_steps=evaluation_steps,
 			  warmup_steps=warmup_steps,
 			  output_path=model_save_path,
+			  optimizer_params={'lr': lr},
 			  use_amp=True)
 	
 	#Save latest model
@@ -213,6 +214,8 @@ if __name__ == "__main__":
 	parser.add_argument("--res_dir", type=str, required=True, help="Base Res dir")
 	# parser.add_argument("--loss_fnc_name", type=str, default='mse', help="Loss function to use")
 	parser.add_argument("--evaluation_steps", type=int, default=5000, help="Model will be evauated after this number of steps")
+	parser.add_argument("--train_batch_size", type=int, default=32, help="train_batch_size")
+	parser.add_argument("--lr", type=float, default=2e-5, help="learning rate")
 	parser.add_argument("--disable_wandb", type=int, choices=[0,1], default=0, help="1-Disable Wanbd, 0-Use wandb")
 	parser.add_argument("--seed", type=int, default=0, help="Random seed")
 	
@@ -223,6 +226,8 @@ if __name__ == "__main__":
 	base_model_name = args.base_model_name
 	
 	evaluation_steps = args.evaluation_steps
+	train_batch_size = args.train_batch_size
+	lr = args.lr
 	disable_wandb = args.disable_wandb
 	
 	wandb.init(
@@ -236,6 +241,8 @@ if __name__ == "__main__":
 		res_dir=res_dir,
 		seed=seed,
 		use_embed_ce_model=use_embed_ce_model,
+		train_batch_size=train_batch_size,
+		lr=lr,
 		base_model_name=base_model_name,
 		evaluation_steps=evaluation_steps,
 	)

@@ -192,14 +192,22 @@ class CrossEncoder():
 
             for batch_idx, (features, labels) in enumerate(tqdm(train_dataloader, desc="Iteration", smoothing=0.05, disable=not show_progress_bar)):
                 wandb.log({f"batch_idx":batch_idx, "batch_frac":batch_idx/len(train_dataloader)})
-				
+                torch.cuda.empty_cache()
+                
                 if use_amp:
                     with autocast():
                         model_predictions = self.model(**features, return_dict=True)
                         logits = activation_fct(model_predictions.logits)
                         if self.config.num_labels == 1:
                             logits = logits.view(-1)
-                        loss_value = loss_fct(logits, labels)
+                        if isinstance(loss_fct, nn.CrossEntropyLoss) and self.config.num_labels == 1:
+                            # Use labels as soft unnormalizes scores and train with Cross-Entropy loss
+                            assert len(logits.shape) ==  1
+                            assert labels.shape == logits.shape
+                            # First convert to (1, len(logits)) shape and then convert compute loss
+                            loss_value = loss_fct(logits.unsqueeze(0), torch.softmax(labels, dim=0).unsqueeze(0))
+                        else:
+                            loss_value = loss_fct(logits, labels)
 
                     scale_before_step = scaler.get_scale()
                     scaler.scale(loss_value).backward()
@@ -214,7 +222,14 @@ class CrossEncoder():
                     logits = activation_fct(model_predictions.logits)
                     if self.config.num_labels == 1:
                         logits = logits.view(-1)
-                    loss_value = loss_fct(logits, labels)
+                    if isinstance(loss_fct, nn.CrossEntropyLoss) and self.config.num_labels == 1:
+                        # Use labels as soft unnormalizes scores and train with Cross-Entropy loss
+                        assert len(logits.shape) ==  1
+                        assert labels.shape == logits.shape
+                        # First convert to (1, len(logits)) shape and then convert compute loss
+                        loss_value = loss_fct(logits.unsqueeze(0), torch.softmax(labels, dim=0).unsqueeze(0))
+                    else:
+                        loss_value = loss_fct(logits, labels)
                     loss_value.backward()
                     torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_grad_norm)
                     optimizer.step()

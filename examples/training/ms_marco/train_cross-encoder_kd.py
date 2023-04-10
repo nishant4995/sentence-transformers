@@ -32,7 +32,7 @@ import random
 import torch
 
 
-def main(res_dir, seed, use_embed_ce_model, base_model_name, evaluation_steps, loss_fnc_name):
+def main(res_dir, seed, use_embed_ce_model, base_model_name, evaluation_steps, loss_fnc_name, teacher_logits_filepath):
     #### Just some code to print debug information to stdout
     logging.basicConfig(format='%(asctime)s - %(message)s',
                         datefmt='%Y-%m-%d %H:%M:%S',
@@ -129,7 +129,9 @@ def main(res_dir, seed, use_embed_ce_model, base_model_name, evaluation_steps, l
     
     # Read our training file
     # As input examples, we provide the (query, passage) pair together with the logits score from the teacher ensemble
-    teacher_logits_filepath = os.path.join(data_folder, 'bert_cat_ensemble_msmarcopassage_train_scores_ids.tsv')
+    if teacher_logits_filepath is None:
+        teacher_logits_filepath = os.path.join(data_folder, 'bert_cat_ensemble_msmarcopassage_train_scores_ids.tsv')
+    
     train_samples = []
     if not os.path.exists(teacher_logits_filepath):
         util.http_get('https://zenodo.org/record/4068216/files/bert_cat_ensemble_msmarcopassage_train_scores_ids.tsv?download=1', teacher_logits_filepath)
@@ -201,6 +203,7 @@ if __name__ == "__main__":
     parser.add_argument("--use_embed_ce_model", type=int, choices=[0, 1], required=True, help="0 - Use default CLS-token based pooling, and 1 - Use Embed based scoring for Cross-Encoder ")
     parser.add_argument("--res_dir", type=str, required=True, help="Base Res dir")
     parser.add_argument("--loss_fnc_name", type=str, default='mse', help="Loss function to use")
+    parser.add_argument("--teacher_logits_filepath", type=str, default=None, help="Path to file logits from teacher model")
     parser.add_argument("--evaluation_steps", type=int, default=5000, help="Model will be evauated after this number of steps")
     parser.add_argument("--disable_wandb", type=int, choices=[0,1], default=0, help="1-Disable Wanbd, 0-Use wandb")
     parser.add_argument("--seed", type=int, default=0, help="Random seed")
@@ -211,6 +214,8 @@ if __name__ == "__main__":
     res_dir = args.res_dir
     base_model_name = args.base_model_name
     loss_fnc_name = args.loss_fnc_name
+    teacher_logits_filepath = args.teacher_logits_filepath
+	
 	
     evaluation_steps = args.evaluation_steps
     disable_wandb = args.disable_wandb
@@ -228,5 +233,6 @@ if __name__ == "__main__":
         use_embed_ce_model=use_embed_ce_model,
 		base_model_name=base_model_name,
 		evaluation_steps=evaluation_steps,
-		loss_fnc_name=loss_fnc_name
+		loss_fnc_name=loss_fnc_name,
+        teacher_logits_filepath=teacher_logits_filepath
     )

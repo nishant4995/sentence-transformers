@@ -23,11 +23,13 @@ class CrossEncoderWEmbeds(nn.Module):
 		super(CrossEncoderWEmbeds, self).__init__()
 		
 		self.config = config
+		# self.normalize_embeds = False
 		# We need access to hidden_states to use contextualized representations
 		# for computing final scores
 		config.output_hidden_states = True
 
 		self.model = AutoModelForSequenceClassification.from_pretrained(model_name, config=config, **automodel_args)
+		self.tokenizer = AutoTokenizer.from_pretrained(model_name)
 		print("Loading Cross-Encoder model that uses dot-product of contextualized embeddings "
 			  "for computing scores INSTEAD of a linear layer on top of CLS token embedding.")
 		
@@ -41,12 +43,12 @@ class CrossEncoderWEmbeds(nn.Module):
 	
 		final_hidden = output.hidden_states[-1]
 		
-		all_cls_token_idxs = (input_ids == 101).nonzero()
-		all_sep_token_idxs = (input_ids == 102).nonzero()
+		all_cls_token_idxs = (input_ids == self.tokenizer.cls_token_id).nonzero()
+		all_sep_token_idxs = (input_ids == self.tokenizer.sep_token_id).nonzero()
 		
-		assert 2*all_cls_token_idxs.shape[0] == all_sep_token_idxs.shape[0]
-		assert all_cls_token_idxs.shape[1] == all_sep_token_idxs.shape[1]
-		assert all_cls_token_idxs.shape[1] == 2
+		assert 2*all_cls_token_idxs.shape[0] == all_sep_token_idxs.shape[0], f"all_cls_token_idxs.shape={all_cls_token_idxs.shape}, all_sep_token_idxs={all_sep_token_idxs.shape}, input_tokens={input_ids}"
+		assert all_cls_token_idxs.shape[1] == all_sep_token_idxs.shape[1], f"all_cls_token_idxs.shape={all_cls_token_idxs.shape}, all_sep_token_idxs={all_sep_token_idxs.shape}"
+		assert all_cls_token_idxs.shape[1] == 2, f"all_cls_token_idxs.shape={all_cls_token_idxs.shape}"
 		
 		# Query embedding correspond to [CLS] token embedding
 		query_embed_tokens = all_cls_token_idxs
@@ -58,12 +60,17 @@ class CrossEncoderWEmbeds(nn.Module):
 		
 		query_embeds   = torch.stack([final_hidden[batch_idx, q_token_idx, :] for (batch_idx, q_token_idx) in query_embed_tokens])
 		passage_embeds = torch.stack([final_hidden[batch_idx, p_token_idx, :] for (batch_idx, p_token_idx) in passage_embed_tokens])
+		
+		# if self.normalize_embeds:
+		# query_embeds = torch.nn.functional.normalize(query_embeds,p=2, dim=1) # Normalize along embed_dim
+		# passage_embeds = torch.nn.functional.normalize(passage_embeds,p=2, dim=1) # Normalize along embed_dim
+		
 		scores = torch.sum(query_embeds * passage_embeds, dim=1).unsqueeze(1)
 		assert scores.shape == (batch_size, 1)
 		
 		# Update logits/scores
 		output.logits = scores
-			
+		
 		# print("logit scores w dot product", scores)
 		##### To debug if we are correctly using hidden_states
 		# final_hidden = output.hidden_states[-1]
@@ -110,7 +117,6 @@ class CrossEncoderWEmbeds(nn.Module):
 		#
 		# print(scores)
 		# embed()
-	# input("")
 		return output
 		
 		
