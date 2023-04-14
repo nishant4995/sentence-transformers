@@ -30,9 +30,11 @@ import tqdm
 import numpy as np
 import random
 import torch
+import json
+from pathlib import Path
 
 
-def main(res_dir, seed, use_embed_ce_model, base_model_name, evaluation_steps, loss_fnc_name, teacher_logits_filepath):
+def main(res_dir, seed, use_embed_ce_model, base_model_name, evaluation_steps, loss_fnc_name, lr, teacher_logits_filepath, arg_dict):
     #### Just some code to print debug information to stdout
     logging.basicConfig(format='%(asctime)s - %(message)s',
                         datefmt='%Y-%m-%d %H:%M:%S',
@@ -47,8 +49,15 @@ def main(res_dir, seed, use_embed_ce_model, base_model_name, evaluation_steps, l
     num_epochs = 1
     model_save_path = f'{res_dir}/output/training_ms-marco_cross-encoder-v2-'+model_name.replace("/", "-")+'-'+datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
     
+    Path(model_save_path).mkdir(exist_ok=True, parents=True)
+    with open(f"{model_save_path}/orig_param_for_run.json", "w") as fout:
+        json.dump(arg_dict, fout, indent=4)
     
-    
+    os.environ["PL_GLOBAL_SEED"] = str(seed)
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
     #We set num_labels=1 and set the activation function to Identiy, so that we get the raw logits
     model = CrossEncoder(model_name, num_labels=1, max_length=512, default_activation_function=torch.nn.Identity(), use_embed_ce_model=use_embed_ce_model)
     
@@ -177,7 +186,7 @@ def main(res_dir, seed, use_embed_ce_model, base_model_name, evaluation_steps, l
         loss_fct = torch.nn.CrossEntropyLoss()
     else:
         raise NotImplementedError(f"loss function = {loss_fnc_name} not supported")
-		
+        
     # Train the model
     model.fit(train_dataloader=train_dataloader,
               loss_fct=loss_fct,
@@ -186,7 +195,7 @@ def main(res_dir, seed, use_embed_ce_model, base_model_name, evaluation_steps, l
               evaluation_steps=evaluation_steps,
               warmup_steps=warmup_steps,
               output_path=model_save_path,
-              optimizer_params={'lr': 7e-6},
+              optimizer_params={'lr': lr},
               use_amp=True)
     
     #Save latest model
@@ -199,40 +208,44 @@ if __name__ == "__main__":
     
     parser = argparse.ArgumentParser( description='Train CE model')
     parser.add_argument("--base_model_name", type=str, default='nreimers/MiniLM-L6-H384-uncased',
-						help="base model for finetuning. Some options are microsoft/MiniLM-L12-H384-uncased, nreimers/MiniLM-L6-H384-uncased")
+                        help="base model for finetuning. Some options are microsoft/MiniLM-L12-H384-uncased, nreimers/MiniLM-L6-H384-uncased")
     parser.add_argument("--use_embed_ce_model", type=int, choices=[0, 1], required=True, help="0 - Use default CLS-token based pooling, and 1 - Use Embed based scoring for Cross-Encoder ")
     parser.add_argument("--res_dir", type=str, required=True, help="Base Res dir")
     parser.add_argument("--loss_fnc_name", type=str, default='mse', help="Loss function to use")
+    parser.add_argument("--lr", type=float, default=7e-6, help="Learning rate")
     parser.add_argument("--teacher_logits_filepath", type=str, default=None, help="Path to file logits from teacher model")
     parser.add_argument("--evaluation_steps", type=int, default=5000, help="Model will be evauated after this number of steps")
     parser.add_argument("--disable_wandb", type=int, choices=[0,1], default=0, help="1-Disable Wanbd, 0-Use wandb")
     parser.add_argument("--seed", type=int, default=0, help="Random seed")
     
     args = parser.parse_args()
-    seed = args.seed
-    use_embed_ce_model = args.use_embed_ce_model
-    res_dir = args.res_dir
-    base_model_name = args.base_model_name
-    loss_fnc_name = args.loss_fnc_name
-    teacher_logits_filepath = args.teacher_logits_filepath
-	
-	
-    evaluation_steps = args.evaluation_steps
-    disable_wandb = args.disable_wandb
-	
+    _seed = args.seed
+    _use_embed_ce_model = args.use_embed_ce_model
+    _res_dir = args.res_dir
+    _base_model_name = args.base_model_name
+    _loss_fnc_name = args.loss_fnc_name
+    _lr = args.lr
+    _teacher_logits_filepath = args.teacher_logits_filepath
+    
+    
+    _evaluation_steps = args.evaluation_steps
+    _disable_wandb = args.disable_wandb
+    
     wandb.init(
-		project="9_BEIR_CrossEnc",
-		dir=res_dir,
-		config=args.__dict__,
-		mode="disabled" if disable_wandb else "online"
-	)
-	
+        project="9_BEIR_CrossEnc",
+        dir=_res_dir,
+        config=args.__dict__,
+        mode="disabled" if _disable_wandb else "online"
+    )
+    
     main(
-        res_dir=res_dir,
-        seed=seed,
-        use_embed_ce_model=use_embed_ce_model,
-		base_model_name=base_model_name,
-		evaluation_steps=evaluation_steps,
-		loss_fnc_name=loss_fnc_name,
-        teacher_logits_filepath=teacher_logits_filepath
+        res_dir=_res_dir,
+        seed=_seed,
+        use_embed_ce_model=_use_embed_ce_model,
+        base_model_name=_base_model_name,
+        evaluation_steps=_evaluation_steps,
+        loss_fnc_name=_loss_fnc_name,
+        lr=_lr,
+        teacher_logits_filepath=_teacher_logits_filepath,
+        arg_dict=args.__dict__
     )

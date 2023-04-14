@@ -29,9 +29,11 @@ import torch
 import numpy as np
 import argparse
 import random
+import json
+from pathlib import Path
 
 
-def main(res_dir, seed, use_embed_ce_model, base_model_name, evaluation_steps, train_batch_size, lr):
+def main(res_dir, seed, use_embed_ce_model, base_model_name, evaluation_steps, train_batch_size, lr, arg_dict):
 	
 	#### Just some code to print debug information to stdout
 	logging.basicConfig(format='%(asctime)s - %(message)s',
@@ -46,6 +48,9 @@ def main(res_dir, seed, use_embed_ce_model, base_model_name, evaluation_steps, t
 	num_epochs = 1
 	model_save_path = f'{res_dir}/output/training_ms-marco_cross-encoder-'+model_name.replace("/", "-")+'-'+datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
 	
+	Path(model_save_path).mkdir(exist_ok=True, parents=True)
+	with open(f"{model_save_path}/orig_param_for_run.json", "w") as fout:
+		json.dump(arg_dict, fout, indent=4)
 	
 	# We train the network with as a binary label task
 	# Given [query, passage] is the label 0 = irrelevant or 1 = relevant?
@@ -57,6 +62,11 @@ def main(res_dir, seed, use_embed_ce_model, base_model_name, evaluation_steps, t
 	# Maximal number of training samples we want to use
 	max_train_samples = 2e7
 	
+	os.environ["PL_GLOBAL_SEED"] = str(seed)
+	random.seed(seed)
+	np.random.seed(seed)
+	torch.manual_seed(seed)
+	torch.cuda.manual_seed_all(seed)
 	#We set num_labels=1, which predicts a continous score between 0 and 1
 	model = CrossEncoder(model_name, num_labels=1, max_length=512, use_embed_ce_model=use_embed_ce_model)
 	
@@ -245,4 +255,5 @@ if __name__ == "__main__":
 		lr=lr,
 		base_model_name=base_model_name,
 		evaluation_steps=evaluation_steps,
+		arg_dict=args.__dict__
 	)
