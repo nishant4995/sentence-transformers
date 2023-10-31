@@ -34,7 +34,7 @@ import json
 from pathlib import Path
 
 
-def main(res_dir, seed, use_embed_ce_model, base_model_name, evaluation_steps, loss_fnc_name, lr, teacher_logits_filepath, arg_dict):
+def main(res_dir, seed, use_embed_ce_model, base_model_name, evaluation_steps, loss_fnc_name, lr, teacher_logits_filepath, train_batch_size, arg_dict):
     #### Just some code to print debug information to stdout
     logging.basicConfig(format='%(asctime)s - %(message)s',
                         datefmt='%Y-%m-%d %H:%M:%S',
@@ -45,7 +45,7 @@ def main(res_dir, seed, use_embed_ce_model, base_model_name, evaluation_steps, l
     
     #First, we define the transformer model we want to fine-tune
     model_name = base_model_name
-    train_batch_size = 32
+    # train_batch_size = 32
     num_epochs = 1
     model_save_path = f'{res_dir}/output/training_ms-marco_cross-encoder-v2-'+model_name.replace("/", "-")+'-'+datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
     
@@ -213,6 +213,7 @@ if __name__ == "__main__":
     parser.add_argument("--res_dir", type=str, required=True, help="Base Res dir")
     parser.add_argument("--loss_fnc_name", type=str, default='mse', help="Loss function to use")
     parser.add_argument("--lr", type=float, default=7e-6, help="Learning rate")
+    parser.add_argument("--train_batch_size", type=int, default=32, help="Train batch size")
     parser.add_argument("--teacher_logits_filepath", type=str, default=None, help="Path to file logits from teacher model")
     parser.add_argument("--evaluation_steps", type=int, default=5000, help="Model will be evauated after this number of steps")
     parser.add_argument("--disable_wandb", type=int, choices=[0,1], default=0, help="1-Disable Wanbd, 0-Use wandb")
@@ -225,6 +226,7 @@ if __name__ == "__main__":
     _base_model_name = args.base_model_name
     _loss_fnc_name = args.loss_fnc_name
     _lr = args.lr
+    _train_batch_size = args.train_batch_size
     _teacher_logits_filepath = args.teacher_logits_filepath
     
     
@@ -246,6 +248,7 @@ if __name__ == "__main__":
         evaluation_steps=_evaluation_steps,
         loss_fnc_name=_loss_fnc_name,
         lr=_lr,
+        train_batch_size=_train_batch_size,
         teacher_logits_filepath=_teacher_logits_filepath,
         arg_dict=args.__dict__
     )

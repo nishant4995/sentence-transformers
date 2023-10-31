@@ -4,15 +4,10 @@ import numpy as np
 import logging
 import torch
 from torch import nn
-from IPython import embed
-from pytorch_transformers.modeling_bert import BertForSequenceClassification
-import pytorch_lightning as pl
 
 logger = logging.getLogger(__name__)
 
 
-# class CrossEncoderWEmbeds(BertForSequenceClassification):
-# class CrossEncoderWEmbeds(pl.LightningModule):
 class CrossEncoderWEmbeds(nn.Module):
 	"""
 	Wrapper around BERT model which is used as a cross-encoder model.
